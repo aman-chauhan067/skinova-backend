@@ -14,7 +14,7 @@ from product_db import product_db
 from utils import detect_face, analyze_skin_color, determine_undertone, predict_skin_concerns, generate_skincare_routine
 
 app = Flask(__name__)
-CORS(app, resources={r"/analyze": {"origins": "http://localhost:3000"}})
+CORS(app, resources={r"/analyze": {"origins": "https://skinova-nine.vercel.app"}})
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024  # 30MB max upload
