@@ -1,5 +1,6 @@
 flask
 opencv-python
+gunicorn
 numpy
 scikit-learn
 tensorflow
