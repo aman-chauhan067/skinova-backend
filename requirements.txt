@@ -1,0 +1,7 @@
+flask
+opencv-python
+numpy
+scikit-learn
+tensorflow
+werkzeug
+flask-cors  # Added to enable CORS support
