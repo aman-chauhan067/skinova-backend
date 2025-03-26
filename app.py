@@ -5,19 +5,24 @@ import os
 import cv2
 import numpy as np
 from PIL import Image, ExifTags
-from sklearn.cluster import KMeans
-import tensorflow as tf
-from statistics import mode
 from collections import defaultdict
+from statistics import mode
 from ingredients_db import ingredients_db
 from product_db import product_db
 from utils import detect_face, analyze_skin_color, determine_undertone, predict_skin_concerns, generate_skincare_routine
 
 app = Flask(__name__)
-CORS(app, resources={r"/analyze": {"origins": "https://skinova-nine.vercel.app"}})
+
+# Allow CORS for all methods
+CORS(app, resources={r"/analyze": {"origins": "https://skinova-nine.vercel.app"}}, supports_credentials=True)
+
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 app.config['MAX_CONTENT_LENGTH'] = 30 * 1024 * 1024  # 30MB max upload
+
+# Ensure upload directory exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -25,7 +30,7 @@ def allowed_file(filename):
 def load_image(filepath):
     try:
         img = Image.open(filepath)
-        
+
         # Handle EXIF orientation
         try:
             for orientation in ExifTags.TAGS.keys():
@@ -59,7 +64,10 @@ def load_image(filepath):
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
+    print("Received request at /analyze")
+
     if 'frontal' not in request.files or 'left' not in request.files or 'right' not in request.files:
+        print("Missing one or more images")
         return jsonify({'error': 'Missing one or more images'}), 400
 
     files = {
@@ -70,13 +78,13 @@ def analyze():
 
     images = []
     error_messages = []
-    
+
     try:
         for view, file in files.items():
             if not file or file.filename == '':
                 error_messages.append(f'No file selected for {view}')
                 continue
-                
+
             if not allowed_file(file.filename):
                 error_messages.append(f'Invalid file type for {view}')
                 continue
@@ -84,34 +92,35 @@ def analyze():
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-            
+
             # Load and process image
             image = load_image(filepath)
             os.remove(filepath)  # Clean up immediately after processing
-            
+
             if image is None:
                 error_messages.append(f'Could not process image for {view}')
                 continue
-            
+
             images.append(image)
 
         if error_messages:
+            print(f"Errors encountered: {error_messages}")
             return jsonify({'error': '; '.join(error_messages)}), 400
 
         # Image processing pipeline
         undertones = []
         all_concerns = []
-        
+
         for img in images:
             face = detect_face(img)
             if face is None:
                 continue
-                
+
             try:
                 skin_color = analyze_skin_color(face)
                 undertone = determine_undertone(skin_color)
                 undertones.append(undertone)
-                
+
                 concerns = predict_skin_concerns(face, model=None)  # Replace with actual model
                 all_concerns.extend(concerns)
             except Exception as e:
@@ -119,12 +128,12 @@ def analyze():
                 continue
 
         final_undertone = mode(undertones) if undertones else 'neutral'
-        
+
         # Aggregate concerns
         concern_counts = defaultdict(lambda: defaultdict(int))
         for concern in all_concerns:
             concern_counts[concern["name"]][concern["severity"]] += 1
-            
+
         detected_concerns = [
             {"name": name, "severity": max(severities, key=severities.get)}
             for name, severities in concern_counts.items() if severities
@@ -139,9 +148,8 @@ def analyze():
         })
 
     except Exception as e:
+        print(f"Server error: {str(e)}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 if __name__ == '__main__':
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
     app.run(debug=True, host='0.0.0.0', port=5000)
