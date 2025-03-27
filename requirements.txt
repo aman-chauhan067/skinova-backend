@@ -1,9 +1,9 @@
-flask
-opencv-python
-gunicorn
-Pillow
-numpy
-scikit-learn
+flask==3.0.2
+flask_cors==4.0.0
+werkzeug==3.0.1
+opencv-python-headless==4.9.0.80
+numpy==1.26.4
+pillow==10.2.0
+gevent==23.9.1
+gunicorn==21.2.0
 tensorflow
-werkzeug
-flask-cors  # Added to enable CORS support
